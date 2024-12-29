@@ -1,16 +1,16 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
-
-#define WIFI_SSID ""
-#define WIFI_PASSWORD ""
+#include "config.h"
+#include "pin_manager.h"
 
 WiFiServer server(80);
+PinManager pin_manager;
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
-  pinMode(LED_BUILTIN, OUTPUT);
-
+  pin_manager.init_pin();
+  
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -48,11 +48,11 @@ void loop() {
 
 
   if (request.indexOf("/LED_ON") != -1) {
-    pin_manager.relay_on();
+    pin_manager.set_relay(true);
   }
 
   if (request.indexOf("/LED_OFF") != -1) {
-    pin_manager.relay_off();
+    pin_manager.set_relay(false);
   }
 
   client.println("HTTP/1.1 200 OK");
@@ -63,7 +63,7 @@ void loop() {
 
   client.print("CONTROL LED: ");
 
-  if (value == HIGH) {
+  if (pin_manager.status()) {
     client.print("ON");
   } else {
     client.print("OFF");
