@@ -1,17 +1,24 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
+
+#include <pin_manager.h>
 #include "config.h"
-#include "pin_manager.h"
+
 
 WiFiServer server(80);
 PinManager pin_manager;
 
+unsigned long curr_time;
+unsigned long last_time;
+
+
 void setup() {
-  // put your setup code here, to run once:
   Serial.begin(9600);
+  Serial.println("Starting...");
+  Serial.println("Inizializing request manager");
   pin_manager.init_pin();
-  
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connecting to Wifi:");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -25,16 +32,26 @@ void setup() {
   Serial.print("Copy and paste the following URL: http://");
   Serial.print(WiFi.localIP());
   Serial.println("/");
-
 }
 
 void loop() {
-  WiFiClient client = server.available();
+  curr_time = millis();
+  if (curr_time % SENSOR_READING_TIME == 0 && curr_time != last_time)
+  {
+    Serial.print("Read temp");
+    Serial.println(curr_time);
 
-  if (!client) {
-    return;
+    //TODO: IMPLEMENT SENSOR READING 
+
+    last_time = curr_time;
   }
 
+  WiFiClient client;
+
+  client = server.accept();
+  if (!client)
+    return;
+  
   Serial.println("Waiting for new client");
 
   while (!client.available()) {
@@ -42,9 +59,8 @@ void loop() {
   }
 
   String request = client.readStringUntil('\r');
-  Serial.println(request);
-  
   client.flush();
+  Serial.println(request);
 
 
   if (request.indexOf("/LED_ON") != -1) {
@@ -64,9 +80,9 @@ void loop() {
   client.print("CONTROL LED: ");
 
   if (pin_manager.status()) {
-    client.print("ON");
+      client.print("ON");
   } else {
-    client.print("OFF");
+      client.print("OFF");
   }
 
   client.println("<br><br>");
