@@ -86,3 +86,25 @@ void RequestManager::handle_request()
     
     web_page(&client);
 }
+
+JsonDocument parse_parameters(String request)
+{
+    JsonDocument parsed;
+    if (request.indexOf("?") == -1)
+        return parsed; 
+    String parameters = request.substring(request.indexOf("?"), request.length());
+
+    while (parameters.indexOf(",") != -1)
+    {
+        String param_name = parameters.substring(0, parameters.indexOf("="));
+        parsed[param_name] = parameters.substring(parameters.indexOf("="), parameters.indexOf(","));
+
+        parameters = parameters.substring(parameters.indexOf(","), parameters.length());
+    }
+
+    String param_name = parameters.substring(0, parameters.indexOf("="));
+    parsed[param_name] = parameters.substring(parameters.indexOf("="), parameters.length());
+
+    return parsed;
+     
+}
