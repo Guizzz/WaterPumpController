@@ -11,6 +11,7 @@ class RequestManager
   WiFiServer* server;
 
   void web_page(WiFiClient* client);
+  JsonDocument parse_parameters(String request);
 
   public:
     RequestManager(String ssid, String psw, WiFiServer* s);

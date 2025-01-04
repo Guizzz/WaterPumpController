@@ -8,7 +8,7 @@ void RequestManager::web_page(WiFiClient* client)
     (*client).println("<!DOCTYPE HTML>");
     (*client).println("<html>");
 
-    (*client).print("CONTROL LED: ");
+    (*client).print("CONTROL RELAY: ");
 
     if (pin_manager.status()) {
         (*client).print("ON");
@@ -17,8 +17,8 @@ void RequestManager::web_page(WiFiClient* client)
     }
 
     (*client).println("<br><br>");
-    (*client).println("<a href=\"?LED=ON\"\"><button>ON</button></a>");
-    (*client).println("<a href=\"?LED=OFF\"\"><button>OFF</button></a><br />");
+    (*client).println("<a href=\"/set?RELAY=ON\"\"><button>ON</button></a>");
+    (*client).println("<a href=\"/set?RELAY=OFF\"\"><button>OFF</button></a><br />");
     (*client).println("</html>");
 
     delay(1);
@@ -69,17 +69,20 @@ void RequestManager::handle_request()
     while (!client.available()) {
         delay(1);
     }
-
+    
     String request = client.readStringUntil('\r');
+
     client.flush();
     Serial.println(request);
 
     if (request.indexOf("/set?") != -1) {
-        if (request.indexOf("LED=ON") != -1) {
+
+        JsonDocument params = parse_parameters(request);
+        if (params["RELAY"] == "ON") {
             pin_manager.set_relay(true);
         }
 
-        if (request.indexOf("LED=OFF") != -1) {
+        if (params["RELAY"] == "OFF") {
             pin_manager.set_relay(false);
         }
     }
@@ -87,24 +90,38 @@ void RequestManager::handle_request()
     web_page(&client);
 }
 
-JsonDocument parse_parameters(String request)
+JsonDocument RequestManager::parse_parameters(String request)
 {
     JsonDocument parsed;
     if (request.indexOf("?") == -1)
         return parsed; 
-    String parameters = request.substring(request.indexOf("?"), request.length());
+    String parameters = request.substring(request.indexOf("?")+1, request.indexOf(" ", request.indexOf("?")));
 
+    Serial.println("Parameters: " + parameters);
+ 
     while (parameters.indexOf(",") != -1)
     {
+        
         String param_name = parameters.substring(0, parameters.indexOf("="));
-        parsed[param_name] = parameters.substring(parameters.indexOf("="), parameters.indexOf(","));
+        parsed[param_name] = parameters.substring(parameters.indexOf("=")+1, parameters.indexOf(","));
 
-        parameters = parameters.substring(parameters.indexOf(","), parameters.length());
+        Serial.print("Param name: ");
+        Serial.print(param_name);
+        Serial.print(" value: ");
+        String s = parsed[param_name];
+        Serial.println(s);
+
+        parameters = parameters.substring(parameters.indexOf(",")+1, parameters.length());
     }
 
     String param_name = parameters.substring(0, parameters.indexOf("="));
-    parsed[param_name] = parameters.substring(parameters.indexOf("="), parameters.length());
+    parsed[param_name] = parameters.substring(parameters.indexOf("=")+1, parameters.length());
+
+    Serial.print("Param name: ");
+    Serial.print(param_name);
+    Serial.print(" value: ");
+    String s = parsed[param_name];
+    Serial.println(s);
 
     return parsed;
-     
 }
