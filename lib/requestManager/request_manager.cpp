@@ -1,25 +1,26 @@
 #include<request_manager.h>
 
 void RequestManager::web_page(WiFiClient* client)
-{
+{   
+    File file = SPIFFS.open("/basic.html", "r");
+    //TODO: IMPLEMENT SENSOR READING 
+    if(!file.available())
+    {
+        (*client).println("HTTP/1.1 500 OK");
+        (*client).println("Content-Type: text/html");
+        (*client).println("");
+        (*client).println("ERROR");
+        return;
+    }
+
+    String page = file.readString();
+
+    page.replace("\%status\%", pin_manager.status()?"ON":"OFF");
+
     (*client).println("HTTP/1.1 200 OK");
     (*client).println("Content-Type: text/html");
     (*client).println("");
-    (*client).println("<!DOCTYPE HTML>");
-    (*client).println("<html>");
-
-    (*client).print("CONTROL RELAY: ");
-
-    if (pin_manager.status()) {
-        (*client).print("ON");
-    } else {
-        (*client).print("OFF");
-    }
-
-    (*client).println("<br><br>");
-    (*client).println("<a href=\"/set?RELAY=ON\"\"><button>ON</button></a>");
-    (*client).println("<a href=\"/set?RELAY=OFF\"\"><button>OFF</button></a><br />");
-    (*client).println("</html>");
+    (*client).println(page);
 
     delay(1);
 
@@ -54,6 +55,12 @@ void RequestManager::init_request()
   Serial.print("Copy and paste the following URL: http://");
   Serial.print(WiFi.localIP());
   Serial.println("/");
+
+  // Initialize SPIFFS
+  if(!SPIFFS.begin()){
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
+  }
 }
 
 void RequestManager::handle_request()
@@ -74,10 +81,10 @@ void RequestManager::handle_request()
 
     client.flush();
     Serial.println(request);
+    JsonDocument params = parse_parameters(request);
 
-    if (request.indexOf("/set?") != -1) {
+    if (request.indexOf("/set?") != -1 && params["method"] == "POST") {
 
-        JsonDocument params = parse_parameters(request);
         if (params["RELAY"] == "ON") {
             pin_manager.set_relay(true);
         }
@@ -85,17 +92,53 @@ void RequestManager::handle_request()
         if (params["RELAY"] == "OFF") {
             pin_manager.set_relay(false);
         }
+        
+        client.println("HTTP/1.1 200 OK");
+        client.println("Content-Type: application/json");
+        client.println("");
+
+        String status = get_status();
+        Serial.println("Setted status: " + status);
+        client.println(status);
+        return;
     }
-    
-    web_page(&client);
+
+    if (request.indexOf("/get_stat") != -1 && params["method"] == "GET")
+    {
+        client.println("HTTP/1.1 200 OK");
+        client.println("Content-Type: application/json");
+        client.println("");
+
+        String status = get_status();
+        Serial.println("Get status: " + status);
+        client.println(status);
+        return;
+    }
+
+    if (request.indexOf(" / ") != -1 && params["method"] == "GET")
+        web_page(&client);
+}
+
+String RequestManager::get_status()
+{
+    JsonDocument resp;
+    resp["relay_status"] = pin_manager.status();
+    String out;
+    serializeJson(resp, out);
+    return out;
 }
 
 JsonDocument RequestManager::parse_parameters(String request)
 {
     JsonDocument parsed;
+    String method = request.substring(0, request.indexOf(" "));
+    parsed["method"] = method;
+
     if (request.indexOf("?") == -1)
         return parsed; 
-    String parameters = request.substring(request.indexOf("?")+1, request.indexOf(" ", request.indexOf("?")));
+
+    request = request.substring(request.indexOf(" ")+1, request.length());
+    String parameters = request.substring(request.indexOf("?")+1, request.indexOf(" "));
 
     Serial.println("Parameters: " + parameters);
  

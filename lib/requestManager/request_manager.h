@@ -12,6 +12,7 @@ class RequestManager
 
   void web_page(WiFiClient* client);
   JsonDocument parse_parameters(String request);
+  String get_status();
 
   public:
     RequestManager(String ssid, String psw, WiFiServer* s);

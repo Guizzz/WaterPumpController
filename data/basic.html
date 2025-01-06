@@ -1,0 +1,52 @@
+<!DOCTYPE HTML>
+<html>
+    CONTROL RELAY: <p id="status">%status%</p>
+    <br><br>
+    <button id="ON-btn">ON</button>
+    <button id="OFF-btn">OFF</button>
+    <br/>
+
+    <script>
+        const button_on = document.getElementById('ON-btn');
+
+        button_on.addEventListener('click', async _ => {
+            try {     
+                const response = await fetch('/set?RELAY=ON', {
+                    method: 'post'
+                });
+                const jresp = await response.json();
+                console.log('Completed!', jresp)
+                document.getElementById("status").innerHTML = jresp.relay_status?"ON":"OFF";
+            } catch(err) {
+                console.error(`Error: ${err}`);
+            }
+        });
+
+        const button_off = document.getElementById('OFF-btn');
+
+        button_off.addEventListener('click', async _ => {
+            try {     
+                const response = await fetch('/set?RELAY=OFF', {
+                    method: 'post'
+                });
+                const jresp = await response.json();
+                console.log('Completed!', jresp);
+                document.getElementById("status").innerHTML = jresp.relay_status?"ON":"OFF";
+            } catch(err) {
+                console.error(`Error: ${err}`);
+            }
+        });
+
+        setInterval(function ( ) {
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+            if (this.readyState == 4 && this.status == 200) {
+                var jresp = JSON.parse(this.responseText);
+                document.getElementById("status").innerHTML = jresp.relay_status?"ON":"OFF";
+            }
+            };
+            xhttp.open("GET", "/get_stat", true);
+            xhttp.send();
+        }, 10000 ) ;
+    </script>
+</html>

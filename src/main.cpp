@@ -24,8 +24,6 @@ void loop() {
     Serial.print("Read temp ");
     Serial.println(curr_time);
 
-    //TODO: IMPLEMENT SENSOR READING 
-
     last_time = curr_time;
   }
 
