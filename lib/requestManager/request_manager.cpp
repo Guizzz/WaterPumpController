@@ -1,32 +1,5 @@
 #include<request_manager.h>
 
-void RequestManager::web_page(WiFiClient* client)
-{   
-    File file = SPIFFS.open("/basic.html", "r");
-    //TODO: IMPLEMENT SENSOR READING 
-    if(!file.available())
-    {
-        (*client).println("HTTP/1.1 500 OK");
-        (*client).println("Content-Type: text/html");
-        (*client).println("");
-        (*client).println("ERROR");
-        return;
-    }
-
-    String page = file.readString();
-
-    page.replace("\%status\%", pin_manager.status()?"ON":"OFF");
-
-    (*client).println("HTTP/1.1 200 OK");
-    (*client).println("Content-Type: text/html");
-    (*client).println("");
-    (*client).println(page);
-
-    delay(1);
-
-    Serial.println("Client disconnected");
-    Serial.println("");
-}
 
 RequestManager::RequestManager(String ssid, String psw, WiFiServer *s)
 {
@@ -93,25 +66,13 @@ void RequestManager::handle_request()
             pin_manager.set_relay(false);
         }
         
-        client.println("HTTP/1.1 200 OK");
-        client.println("Content-Type: application/json");
-        client.println("");
-
-        String status = get_status();
-        Serial.println("Setted status: " + status);
-        client.println(status);
+        get_status(&client);
         return;
     }
 
     if (request.indexOf("/get_stat") != -1 && params["method"] == "GET")
-    {
-        client.println("HTTP/1.1 200 OK");
-        client.println("Content-Type: application/json");
-        client.println("");
-
-        String status = get_status();
-        Serial.println("Get status: " + status);
-        client.println(status);
+    {   
+        get_status(&client);
         return;
     }
 
@@ -119,13 +80,48 @@ void RequestManager::handle_request()
         web_page(&client);
 }
 
-String RequestManager::get_status()
+void RequestManager::send_header(WiFiClient *client, bool ok, String content_type)
 {
+    if(!ok)
+        (*client).println("HTTP/1.1 500 OK");
+    else
+        (*client).println("HTTP/1.1 200 OK");
+    (*client).println("Content-Type: " + content_type);
+    (*client).println("");
+}
+
+void RequestManager::web_page(WiFiClient* client)
+{   
+    File file = SPIFFS.open("/basic.html", "r");
+    //TODO: IMPLEMENT SENSOR READING 
+    if(!file.available())
+    {
+        send_header(client, false, "text/html");
+        (*client).println("ERROR");
+        return;
+    }
+
+    String page = file.readString();
+
+    page.replace("\%status\%", pin_manager.status()?"ON":"OFF");
+
+    send_header(client, true, "text/html");
+    
+    delay(1);
+
+    Serial.println("Client disconnected");
+    Serial.println("");
+}
+
+void RequestManager::get_status(WiFiClient* client)
+{
+    send_header(client, true, "application/json");
     JsonDocument resp;
     resp["relay_status"] = pin_manager.status();
     String out;
     serializeJson(resp, out);
-    return out;
+    Serial.println("Get status: " + out);
+    (*client).println(out); 
 }
 
 JsonDocument RequestManager::parse_parameters(String request)

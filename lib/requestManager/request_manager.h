@@ -10,12 +10,15 @@ class RequestManager
   String ssid, psw;
   WiFiServer* server;
 
+  void send_header(WiFiClient* client, bool ok, String content_type);
+  
   void web_page(WiFiClient* client);
+  void get_status(WiFiClient* client);
+
   JsonDocument parse_parameters(String request);
-  String get_status();
 
   public:
     RequestManager(String ssid, String psw, WiFiServer* s);
-    void handle_request();
     void init_request();
+    void handle_request();
 };
