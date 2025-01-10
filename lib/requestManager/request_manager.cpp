@@ -1,18 +1,18 @@
 #include<request_manager.h>
 
 
-RequestManager::RequestManager(String ssid, String psw, WiFiServer *s)
+RequestManager::RequestManager(String ssid, String psw, WiFiServer *s, PinManager * p)
 {
     this->ssid=ssid;
     this->psw=psw;
     this->server=s;
+    this->pin_manager=p;
 }
 
 void RequestManager::init_request()
 {
   Serial.println("Starting...");
   Serial.println("Inizializing request manager");
-  pin_manager.init_pin();
   WiFi.begin(ssid, psw);
   Serial.print("Connecting to Wifi:");
   while (WiFi.status() != WL_CONNECTED) {
@@ -58,15 +58,7 @@ void RequestManager::handle_request()
 
     if (request.indexOf("/set?") != -1 && params["method"] == "POST") {
 
-        if (params["RELAY"] == "ON") {
-            pin_manager.set_relay(true);
-        }
-
-        if (params["RELAY"] == "OFF") {
-            pin_manager.set_relay(false);
-        }
-        
-        get_status(&client);
+        manage_relay(&client, params);
         return;
     }
 
@@ -102,11 +94,14 @@ void RequestManager::web_page(WiFiClient* client)
     }
 
     String page = file.readString();
+    JsonDocument resp = (*pin_manager).status();
+    bool relay = resp["relay_status"].as<bool>();
 
-    page.replace("\%status\%", pin_manager.status()?"ON":"OFF");
+    page.replace("\%status\%", relay?"ON":"OFF");
 
     send_header(client, true, "text/html");
-    
+    (*client).println(page);
+
     delay(1);
 
     Serial.println("Client disconnected");
@@ -116,12 +111,30 @@ void RequestManager::web_page(WiFiClient* client)
 void RequestManager::get_status(WiFiClient* client)
 {
     send_header(client, true, "application/json");
-    JsonDocument resp;
-    resp["relay_status"] = pin_manager.status();
     String out;
-    serializeJson(resp, out);
+    JsonDocument s = (*pin_manager).status();
+    serializeJson(s, out);
     Serial.println("Get status: " + out);
     (*client).println(out); 
+}
+
+
+void RequestManager::manage_relay(WiFiClient* client, JsonDocument params)
+{   
+    if(params["RELAY"] != "ON" && params["RELAY"] != "OFF")
+    {
+        send_header(client, false, "application/json");
+        (*client).print("{'error': {'RELAY': 'Invalid type: can only be ON or OFF'}}");
+        return;
+    }
+
+    bool action = params["RELAY"] == "ON";
+
+    if (!params.containsKey("TIMER"))
+        (*pin_manager).set_relay(action);
+    else
+        (*pin_manager).create_timer(String(params["TIMER"]).toInt(), action);
+    get_status(client);
 }
 
 JsonDocument RequestManager::parse_parameters(String request)
@@ -138,11 +151,11 @@ JsonDocument RequestManager::parse_parameters(String request)
 
     Serial.println("Parameters: " + parameters);
  
-    while (parameters.indexOf(",") != -1)
+    while (parameters.indexOf("&") != -1)
     {
         
         String param_name = parameters.substring(0, parameters.indexOf("="));
-        parsed[param_name] = parameters.substring(parameters.indexOf("=")+1, parameters.indexOf(","));
+        parsed[param_name] = parameters.substring(parameters.indexOf("=")+1, parameters.indexOf("&"));
 
         Serial.print("Param name: ");
         Serial.print(param_name);
@@ -150,7 +163,7 @@ JsonDocument RequestManager::parse_parameters(String request)
         String s = parsed[param_name];
         Serial.println(s);
 
-        parameters = parameters.substring(parameters.indexOf(",")+1, parameters.length());
+        parameters = parameters.substring(parameters.indexOf("&")+1, parameters.length());
     }
 
     String param_name = parameters.substring(0, parameters.indexOf("="));

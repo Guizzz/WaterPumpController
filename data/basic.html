@@ -1,48 +1,92 @@
 <!DOCTYPE HTML>
 <html>
-    CONTROL RELAY: <p id="status">%status%</p>
-    <br><br>
-    <button id="ON-btn">ON</button>
-    <button id="OFF-btn">OFF</button>
+    Relay status: <span id="status">%status%</span>
     <br/>
+    <br/>
+    Instant set:
+    <button id="ON-btn" value="ON">ON</button>
+    <button id="OFF-btn" value="OFF">OFF</button>
+    <br/>
+    <br/>
+
+    Timer: 
+    <select name="timer-time" id="timer-time">
+        <option value=600>10 min</option>
+        <option value=1800>30 min</option>
+        <option value=3600>1 ora</option>
+        <option value=7200>2 ore</option>
+    </select>
+
+    <select name="action" id="action">
+        <option value="ON">ON</option>
+        <option value="OFF">OFF</option>
+    </select>
+    <button id="timer-btn" >Set timer</button>
+
 
     <script>
         const button_on = document.getElementById('ON-btn');
-
-        button_on.addEventListener('click', async _ => {
-            try {     
-                const response = await fetch('/set?RELAY=ON', {
-                    method: 'post'
-                });
-                const jresp = await response.json();
-                console.log('Completed!', jresp)
-                document.getElementById("status").innerHTML = jresp.relay_status?"ON":"OFF";
-            } catch(err) {
-                console.error(`Error: ${err}`);
-            }
-        });
-
         const button_off = document.getElementById('OFF-btn');
+        const button_timer = document.getElementById('timer-btn');
 
-        button_off.addEventListener('click', async _ => {
-            try {     
-                const response = await fetch('/set?RELAY=OFF', {
+        function set_page(status)
+        {
+            if (status)
+            {
+                document.getElementById("status").innerHTML = "ON";
+                button_on.hidden = true;
+                button_off.hidden = false;
+                return;
+            }
+            
+            document.getElementById("status").innerHTML = "OFF";
+            button_on.hidden = false;
+            button_off.hidden = true;
+        }
+
+        async function send(param)
+        {   
+            var url = '/set?' + new URLSearchParams(param).toString();
+            console.log(url);
+            try { 
+                const response = await fetch(url, {
                     method: 'post'
                 });
                 const jresp = await response.json();
                 console.log('Completed!', jresp);
-                document.getElementById("status").innerHTML = jresp.relay_status?"ON":"OFF";
+                set_page(jresp.relay_status);
+
             } catch(err) {
                 console.error(`Error: ${err}`);
             }
+        }
+
+        button_on.addEventListener('click', async _ => {
+            send({RELAY: "ON"});
         });
+
+
+        button_off.addEventListener('click', async _ => {
+            send({RELAY: "OFF"});
+        });
+
+        button_timer.addEventListener('click', async _ => {
+            var action = document.getElementById("action").value;
+            var timer_time = document.getElementById("timer-time").value;
+
+            send({
+                RELAY: action,
+                TIMER:timer_time
+            });
+        });
+
 
         setInterval(function ( ) {
             var xhttp = new XMLHttpRequest();
             xhttp.onreadystatechange = function() {
             if (this.readyState == 4 && this.status == 200) {
                 var jresp = JSON.parse(this.responseText);
-                document.getElementById("status").innerHTML = jresp.relay_status?"ON":"OFF";
+                set_page(jresp.relay_status);
             }
             };
             xhttp.open("GET", "/get_stat", true);

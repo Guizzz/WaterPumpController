@@ -1,11 +1,13 @@
 #include <Arduino.h>
 #include<request_manager.h>
+#include <pin_manager.h>
 
 #include "config.h"
 
 
 WiFiServer server(80);
-RequestManager request_manager(WIFI_SSID, WIFI_PASSWORD, &server);
+PinManager pin_manager;
+RequestManager request_manager(WIFI_SSID, WIFI_PASSWORD, &server, &pin_manager);
 
 unsigned long curr_time;
 unsigned long last_time;
@@ -14,6 +16,7 @@ unsigned long last_time;
 
 void setup() {
   Serial.begin(9600);
+  pin_manager.init_pin();
   request_manager.init_request();
 }
 
@@ -27,5 +30,6 @@ void loop() {
     last_time = curr_time;
   }
 
+  pin_manager.manage_timer(curr_time/1000);
   request_manager.handle_request();
 }

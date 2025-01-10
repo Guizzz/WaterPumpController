@@ -6,7 +6,7 @@
 
 class RequestManager
 {
-  PinManager pin_manager;
+  PinManager* pin_manager;
   String ssid, psw;
   WiFiServer* server;
 
@@ -14,11 +14,12 @@ class RequestManager
   
   void web_page(WiFiClient* client);
   void get_status(WiFiClient* client);
+  void manage_relay(WiFiClient* client, JsonDocument params);
 
   JsonDocument parse_parameters(String request);
 
   public:
-    RequestManager(String ssid, String psw, WiFiServer* s);
+    RequestManager(String ssid, String psw, WiFiServer* s, PinManager* p);
     void init_request();
     void handle_request();
 };
