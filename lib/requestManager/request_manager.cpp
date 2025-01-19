@@ -1,12 +1,11 @@
 #include<request_manager.h>
 
 
-RequestManager::RequestManager(String ssid, String psw, WiFiServer *s, PinManager * p)
+RequestManager::RequestManager(String ssid, String psw, WiFiServer *s)
 {
     this->ssid=ssid;
     this->psw=psw;
     this->server=s;
-    this->pin_manager=p;
 }
 
 void RequestManager::init_request()
@@ -36,6 +35,16 @@ void RequestManager::init_request()
   }
 }
 
+void RequestManager::add_request(String method, String path, JsonDocument (*request_function)(void *manager, JsonDocument param), void *manager)
+{
+    Request new_request;
+    new_request.method = method;
+    new_request.path = path;
+    new_request.request_function = request_function;
+    new_request.manager = manager;
+    requests_list.push_back(new_request);
+}
+
 void RequestManager::handle_request()
 {
     WiFiClient client;
@@ -56,20 +65,28 @@ void RequestManager::handle_request()
     Serial.println(request);
     JsonDocument params = parse_parameters(request);
 
-    if (request.indexOf("/set?") != -1 && params["method"] == "POST") {
+    for(auto r: requests_list)
+    {
+        if (request.indexOf(r.path) != -1 && params["method"] == r.method) {
 
-        manage_relay(&client, params);
-        return;
-    }
-
-    if (request.indexOf("/get_stat") != -1 && params["method"] == "GET")
-    {   
-        get_status(&client);
-        return;
+            JsonDocument resp = r.request_function(r.manager, params);
+            String out;
+            serializeJson(resp, out);
+            send_header(&client, !resp.containsKey("error"), "application/json");
+            client.print(out);
+            return;
+        }
     }
 
     if (request.indexOf(" / ") != -1 && params["method"] == "GET")
         web_page(&client);
+    
+    JsonDocument resp;
+    resp["error"] = "Unknown request";
+    String out;
+    serializeJson(resp, out);
+    send_header(&client, false, "application/json");
+    client.print(out);
 }
 
 void RequestManager::send_header(WiFiClient *client, bool ok, String content_type)
@@ -94,10 +111,10 @@ void RequestManager::web_page(WiFiClient* client)
     }
 
     String page = file.readString();
-    JsonDocument resp = (*pin_manager).status();
-    bool relay = resp["relay_status"].as<bool>();
+    // JsonDocument resp = (*pin_manager).status();
+    // bool relay = resp["relay_status"].as<bool>();
 
-    page.replace("\%status\%", relay?"ON":"OFF");
+    // page.replace("\%status\%", relay?"ON":"OFF");
 
     send_header(client, true, "text/html");
     (*client).println(page);
@@ -106,35 +123,6 @@ void RequestManager::web_page(WiFiClient* client)
 
     Serial.println("Client disconnected");
     Serial.println("");
-}
-
-void RequestManager::get_status(WiFiClient* client)
-{
-    send_header(client, true, "application/json");
-    String out;
-    JsonDocument s = (*pin_manager).status();
-    serializeJson(s, out);
-    Serial.println("Get status: " + out);
-    (*client).println(out); 
-}
-
-
-void RequestManager::manage_relay(WiFiClient* client, JsonDocument params)
-{   
-    if(params["RELAY"] != "ON" && params["RELAY"] != "OFF")
-    {
-        send_header(client, false, "application/json");
-        (*client).print("{'error': {'RELAY': 'Invalid type: can only be ON or OFF'}}");
-        return;
-    }
-
-    bool action = params["RELAY"] == "ON";
-
-    if (!params.containsKey("TIMER"))
-        (*pin_manager).set_relay(action);
-    else
-        (*pin_manager).create_timer(String(params["TIMER"]).toInt(), action);
-    get_status(client);
 }
 
 JsonDocument RequestManager::parse_parameters(String request)
