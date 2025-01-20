@@ -78,8 +78,15 @@ void setup() {
     for(;;);
   }
   delay(2000);
+
   display.clearDisplay();
   display.setTextColor(WHITE);
+
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setCursor(0,0);
+  Serial.print("Connecting to Wifi...");
+  display.display();
 
   pin_manager.init_pin();
   request_manager.init_request();
@@ -87,6 +94,7 @@ void setup() {
   request_manager.add_request("GET","/get_temp", &get_temp, &sensor);
   request_manager.add_request("GET","/get_status", &get_status, &pin_manager);
   request_manager.add_request("POST","/set?", &manage_relay, &pin_manager);
+
 }
 
 void loop() {
@@ -95,18 +103,40 @@ void loop() {
   {
     Serial.print("Read temp ");
     Serial.println(curr_time);
-
     display.clearDisplay();
   
     // display temperature
     display.setTextSize(1);
     display.setCursor(0,0);
-    display.print("Temperature: ");
+    display.print("Monitor ambient");
+    
+    JsonDocument p;
+    JsonDocument t_h = get_temp(&sensor, p);
 
+    display.setCursor(0, 16);
+    display.print("Temp: ");
+    // display.setCursor(0, 26);
+    display.setTextSize(2);
+    display.print((float)t_h["temperature"], 1);
+    display.print(" ");
+    display.setTextSize(1);
+    display.cp437(true);
+    display.write(167);
+    display.setTextSize(2);
+    display.print("C");
+
+    display.setCursor(0, 42);
+    display.setTextSize(1);
+    display.print("Hum:  ");
+    // display.setCursor(0, 52);
+    display.setTextSize(2);
+    display.print((float)t_h["humidity"], 1);
+    display.print(" %");
+
+    display.display(); 
     last_time = curr_time;
   }
 
   pin_manager.manage_timer(curr_time/1000);
-
   request_manager.handle_request();
 }
