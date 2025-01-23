@@ -35,13 +35,12 @@ void RequestManager::init_request()
   }
 }
 
-void RequestManager::add_request(String method, String path, JsonDocument (*request_function)(void *manager, JsonDocument param), void *manager)
+void RequestManager::add_request(String method, String path, JsonDocument (*request_function)(JsonDocument param))
 {
     Request new_request;
     new_request.method = method;
     new_request.path = path;
     new_request.request_function = request_function;
-    new_request.manager = manager;
     requests_list.push_back(new_request);
 }
 
@@ -69,7 +68,7 @@ void RequestManager::handle_request()
     {
         if (request.indexOf(r.path) != -1 && params["method"] == r.method) {
 
-            JsonDocument resp = r.request_function(r.manager, params);
+            JsonDocument resp = r.request_function(params);
             String out;
             serializeJson(resp, out);
             send_header(&client, !resp.containsKey("error"), "application/json");

@@ -8,8 +8,7 @@ struct Request
 {
   String method;
   String path;
-  void* manager;
-  JsonDocument (*request_function)(void* manager, JsonDocument param);
+  JsonDocument (*request_function)(JsonDocument param);
 };
 
 class RequestManager
@@ -33,6 +32,6 @@ class RequestManager
     request_function: define the function to be called to manage the request
     parm: param to pass to the request_function
     */
-    void add_request(String method, String path, JsonDocument (*request_function)(void *manager, JsonDocument param), void* manager);
+    void add_request(String method, String path, JsonDocument (*request_function)(JsonDocument param));
     void handle_request();
 };
