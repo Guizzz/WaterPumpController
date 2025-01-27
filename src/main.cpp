@@ -5,6 +5,7 @@
 
 #include <request_manager.h>
 #include <pin_manager.h>
+#include <http_time_sync.h>
 
 #include "config.h"
 #include "gy_21.h"
@@ -23,6 +24,7 @@ unsigned long curr_time;
 unsigned long last_time;
 
 GY21 sensor;
+HTTPTimeSync t;
 
 void init_display()
 {
@@ -75,16 +77,15 @@ void display_info(float temp, float humidity, bool relay)
   display.display(); 
 }
 
-
 JsonDocument get_temp(JsonDocument param)
 {
   float temp = sensor.GY21_Temperature();
   float hum = sensor.GY21_Humidity();
-  Serial.print("temp: ");
+  /*Serial.print("temp: ");
   Serial.print(temp);
   Serial.print("\t");
   Serial.print("Hum: ");
-  Serial.println(hum);
+  Serial.println(hum);*/
 
   JsonDocument resp;
   resp["temperature"] = temp;
@@ -110,7 +111,7 @@ JsonDocument manage_relay(JsonDocument params)
 
   bool action = params["RELAY"] == "ON";
 
-  if (!params.containsKey("TIMER"))
+  if (!params["TIMER"].is<String>())
       pin_manager.set_relay(action);
   else
       pin_manager.create_timer(String(params["TIMER"]).toInt(), action);
@@ -124,7 +125,6 @@ JsonDocument manage_relay(JsonDocument params)
 }
 
 
-
 void setup() {
   Serial.begin(9600);
   Wire.begin(14,12); // SDA, SCL
@@ -132,6 +132,8 @@ void setup() {
   init_display();
   pin_manager.init_pin();
   request_manager.init_request();
+  
+  t.syncTime();
 
   request_manager.add_request("GET","/get_temp", &get_temp);
   request_manager.add_request("GET","/get_status", &get_status);
@@ -139,7 +141,7 @@ void setup() {
 }
 
 void loop() {
-  curr_time = millis();
+  curr_time = t.get_dailySec();
   if (curr_time % SENSOR_READING_TIME == 0 && curr_time != last_time)
   {
     Serial.print("Read temp ");
@@ -149,7 +151,8 @@ void loop() {
     display_info(t_h["temperature"], t_h["humidity"], t_h["relay_info"]["relay_status"]); 
     last_time = curr_time;
   }
-
-  pin_manager.manage_timer(curr_time/1000);
+  
+  t.update_time();
+  pin_manager.manage_timer(curr_time);
   request_manager.handle_request();
 }
