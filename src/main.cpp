@@ -24,7 +24,7 @@ unsigned long curr_time;
 unsigned long last_time;
 
 GY21 sensor;
-HTTPTimeSync t;
+ClockTime t;
 
 void init_display()
 {
@@ -124,6 +124,21 @@ JsonDocument manage_relay(JsonDocument params)
   return get_status((JsonDocument)nullptr);
 }
 
+JsonDocument create_rutine(JsonDocument params)
+{
+  pin_manager.create_routine(
+    String(params["start_hour"]).toInt(), 
+    String(params["start_minute"]).toInt(), 
+    String(params["stop_hour"]).toInt(), 
+    String(params["stop_minute"]).toInt());
+  return get_status((JsonDocument)nullptr);
+}
+
+JsonDocument delete_rutine(JsonDocument params)
+{
+  pin_manager.delete_routine();
+  return get_status((JsonDocument)nullptr);
+}
 
 void setup() {
   Serial.begin(9600);
@@ -137,7 +152,9 @@ void setup() {
 
   request_manager.add_request("GET","/get_temp", &get_temp);
   request_manager.add_request("GET","/get_status", &get_status);
-  request_manager.add_request("POST","/set?", &manage_relay);
+  request_manager.add_request("POST","/set", &manage_relay);
+  request_manager.add_request("POST","/create_routine", &create_rutine);
+  request_manager.add_request("DELETE","/delete_rutine", &delete_rutine);
 }
 
 void loop() {
@@ -152,7 +169,8 @@ void loop() {
     last_time = curr_time;
   }
   
-  t.update_time();
-  pin_manager.manage_timer(curr_time);
+  pin_manager.manage_timer(t);
   request_manager.handle_request();
+  
+  t.update_time();
 }

@@ -25,11 +25,14 @@ JsonDocument PinManager::status()
     JsonDocument resp;
     resp["relay_status"] = value == HIGH;
     resp["active_timer"] = timers_running+1;
+    resp["active_routine"] = routine_running;
     return resp;
 }
 
-void PinManager::manage_timer(unsigned long curr_time)
+void PinManager::manage_timer(ClockTime time)
 {   
+    unsigned long curr_time = time.get_dailySec();
+
     if(timers_running == -1)
         return;
 
@@ -46,6 +49,22 @@ void PinManager::manage_timer(unsigned long curr_time)
         timers_running--;
         Serial.println("Timer #" + String(i) + " is expired");
     }
+
+    if(routine_running == 0)
+        return;
+    
+    if(routine.start == curr_time)
+    {
+        Serial.println("Routine started");
+        set_relay(true);
+        return;
+    }
+    
+    if(routine.stop != curr_time)
+        return;
+
+    Serial.println("Routine ended");
+    set_relay(false);
 }
 
 bool PinManager::create_timer(unsigned long delta_timer, bool action)
@@ -72,3 +91,18 @@ bool PinManager::create_timer(unsigned long delta_timer, bool action)
     return true;
 }
 
+bool PinManager::create_routine(unsigned long start_hour, unsigned long start_minute, unsigned long stop_hour, unsigned long stop_minute)
+{
+    routine.start = (start_hour * 3600) + (start_minute * 60);
+    routine.stop = (stop_hour * 3600) + (stop_minute * 60);
+    routine_running ++;
+    Serial.println("Routine created");
+    return true;
+}
+
+bool PinManager::delete_routine()
+{   
+    if(routine_running > 0)
+        routine_running --;
+    return true;
+}

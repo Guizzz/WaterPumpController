@@ -1,6 +1,6 @@
 #include "http_time_sync.h"
 
-void HTTPTimeSync::syncTime()
+void ClockTime::syncTime()
 {
   if ((WiFi.status() != WL_CONNECTED)) {
     Serial.println("Connection error");
@@ -44,13 +44,15 @@ void HTTPTimeSync::syncTime()
 
 }
 
-void HTTPTimeSync::update_time()
+void ClockTime::update_time()
 {
   curr_time = millis()/1000;
   if (curr_time == last_time )
     return;
+  
+  daily_sec++;
+  daily_sec = daily_sec % 86400;
 
-  daily_sec = (daily_sec++) % 86400;
   if(daily_sec == 0)
     syncTime();
   last_time = curr_time;
@@ -58,9 +60,13 @@ void HTTPTimeSync::update_time()
   hours = daily_sec/3600;
   minutes = (daily_sec%3600)/60;
   seconds = (daily_sec%3600)%60;
+
+  Serial.print("h: "); Serial.print(hours);
+  Serial.print(" m: "); Serial.print(minutes);
+  Serial.print(" s: "); Serial.println(seconds);
 }
 
-int HTTPTimeSync::get_dailySec()
+int ClockTime::get_dailySec()
 {
     return daily_sec;
 }
