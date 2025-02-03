@@ -32,6 +32,8 @@ JsonDocument PinManager::status()
 void PinManager::manage_timer(ClockTime time)
 {   
     unsigned long curr_time = time.get_dailySec();
+    
+    manage_routine(curr_time);
 
     if(timers_running == -1)
         return;
@@ -50,11 +52,16 @@ void PinManager::manage_timer(ClockTime time)
         Serial.println("Timer #" + String(i) + " is expired");
     }
 
+}
+
+void PinManager::manage_routine(unsigned long curr_time)
+{
     if(routine_running == 0)
         return;
     
     if(routine.start == curr_time)
     {
+        routine.start = 0;
         Serial.println("Routine started");
         set_relay(true);
         return;
@@ -63,11 +70,12 @@ void PinManager::manage_timer(ClockTime time)
     if(routine.stop != curr_time)
         return;
 
+    routine.stop = 0;
     Serial.println("Routine ended");
     set_relay(false);
 }
 
-bool PinManager::create_timer(unsigned long delta_timer, bool action)
+bool PinManager::create_timer(unsigned long delta_timer, bool action, unsigned long current_time)
 {
     if(timers_running == 9)
         return false;
@@ -83,7 +91,7 @@ bool PinManager::create_timer(unsigned long delta_timer, bool action)
 
     timers_running++;
     timers[i_available].action = action;
-    timers[i_available].start_timer = millis()/1000;
+    timers[i_available].start_timer = current_time;
     timers[i_available].delta_timer = delta_timer;
     Serial.println("Timer #" + String(i_available) + 
                     " started | start " + String(timers[i_available].start_timer) + 
@@ -95,8 +103,11 @@ bool PinManager::create_routine(unsigned long start_hour, unsigned long start_mi
 {
     routine.start = (start_hour * 3600) + (start_minute * 60);
     routine.stop = (stop_hour * 3600) + (stop_minute * 60);
+
     routine_running ++;
-    Serial.println("Routine created");
+    
+    Serial.print("Routine created | start: "); Serial.print(routine.start);
+    Serial.print(" | stop: "); Serial.println(routine.stop);
     return true;
 }
 

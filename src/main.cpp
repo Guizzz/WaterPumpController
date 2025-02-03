@@ -111,12 +111,43 @@ JsonDocument manage_relay(JsonDocument params)
 
   bool action = params["RELAY"] == "ON";
 
-  if (!params["TIMER"].is<String>())
-      pin_manager.set_relay(action);
-  else
-      pin_manager.create_timer(String(params["TIMER"]).toInt(), action);
-
+  if (params["TIMER"].is<String>())
+  {   
+    Serial.println("Invalid request: set/ request does not have TIMER");
+    resp["error"]["TIMER"] = "Invalid type: set/ request does not have TIMER";
+    return resp;
+  }
   
+  pin_manager.set_relay(action);
+  
+  JsonDocument t_h = get_temp((JsonDocument)nullptr);
+  t_h["relay_info"] = get_status((JsonDocument)nullptr);
+  display_info(t_h["temperature"], t_h["humidity"], t_h["relay_info"]["relay_status"]); 
+
+  return get_status((JsonDocument)nullptr);
+}
+
+JsonDocument create_timer(JsonDocument params)
+{
+  JsonDocument resp;
+  if(params["RELAY"] != "ON" && params["RELAY"] != "OFF")
+  {   
+    Serial.println("Invalid type: can only be ON or OFF");
+    resp["error"]["RELAY"] = "Invalid type: can only be ON or OFF";
+    return resp;
+  }
+
+  bool action = params["RELAY"] == "ON";
+
+  if (!params["TIMER"].is<String>())
+  {   
+    Serial.println("Invalid request: missing TIMER parameter");
+    resp["error"]["TIMER"] = "Invalid request: missing TIMER parameter";
+    return resp;
+  }
+
+  pin_manager.create_timer(String(params["TIMER"]).toInt(), action, t.get_dailySec());
+
   JsonDocument t_h = get_temp((JsonDocument)nullptr);
   t_h["relay_info"] = get_status((JsonDocument)nullptr);
   display_info(t_h["temperature"], t_h["humidity"], t_h["relay_info"]["relay_status"]); 
@@ -153,8 +184,9 @@ void setup() {
   request_manager.add_request("GET","/get_temp", &get_temp);
   request_manager.add_request("GET","/get_status", &get_status);
   request_manager.add_request("POST","/set", &manage_relay);
+  request_manager.add_request("POST","/create_timer", &create_timer);
   request_manager.add_request("POST","/create_routine", &create_rutine);
-  request_manager.add_request("DELETE","/delete_rutine", &delete_rutine);
+  request_manager.add_request("DELETE","/delete_routine", &delete_rutine);
 }
 
 void loop() {

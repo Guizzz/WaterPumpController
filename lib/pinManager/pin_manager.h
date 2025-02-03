@@ -26,11 +26,12 @@ public:
   bool set_relay(bool set);
   JsonDocument status();
   void manage_timer(ClockTime curr_time);
-  bool create_timer(unsigned long delta_timer, bool action);
+  bool create_timer(unsigned long delta_timer, bool action, unsigned long current_time);
   bool create_routine(unsigned long start_hour, unsigned long start_minute, unsigned long stop_hour, unsigned long stop_minute);
   bool delete_routine();
 
 private:
+  void manage_routine(unsigned long curr_time);
   bool value = false;
 
   //can be only max 10 timers
