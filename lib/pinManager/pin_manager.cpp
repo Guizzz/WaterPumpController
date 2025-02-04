@@ -34,7 +34,7 @@ void PinManager::manage_timer(ClockTime time)
     unsigned long curr_time = time.get_dailySec();
     
     manage_routine(curr_time);
-
+    
     if(timers_running == -1)
         return;
 
@@ -61,7 +61,6 @@ void PinManager::manage_routine(unsigned long curr_time)
     
     if(routine.start == curr_time)
     {
-        routine.start = 0;
         Serial.println("Routine started");
         set_relay(true);
         return;
@@ -70,7 +69,6 @@ void PinManager::manage_routine(unsigned long curr_time)
     if(routine.stop != curr_time)
         return;
 
-    routine.stop = 0;
     Serial.println("Routine ended");
     set_relay(false);
 }
