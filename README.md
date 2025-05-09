@@ -8,6 +8,16 @@ Create a 'config.h' file inside 'include' folder
 #define WIFI_PASSWORD        "wifi-psw"
 #define SENSOR_READING_TIME  5
 ```
+### Wiring
+My board has relay module embedded on it directly soldered to pin 5. But you can change the pin number in `~/lib/pinManager/pinManager.h`.
+For screen and sensor both use a serial communication with two pins, 14 and 12.
+
+| Cable    | Pin     |
+| -------- | ------- |
+| Relay    | 5       |
+| 14       | SDA     |
+| 12       | SCL     |
+
 # API Endpoints Documentation
 
 ## Endpoints
