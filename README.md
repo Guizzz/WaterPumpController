@@ -15,8 +15,8 @@ For screen and sensor both use a serial communication with two pins, 14 and 12.
 | Cable    | Pin     |
 | -------- | ------- |
 | Relay    | 5       |
-| 14       | SDA     |
-| 12       | SCL     |
+| SDA      | 14      |
+| SCL      | 12      |
 
 # API Endpoints Documentation
 
