@@ -171,6 +171,10 @@ JsonDocument delete_rutine(JsonDocument params)
   return get_status((JsonDocument)nullptr);
 }
 
+int prev_button_state = HIGH; // the previous state from the input pin
+int button_state;
+const int BUTTON_PIN = 15;
+
 void setup() {
   Serial.begin(9600);
   Wire.begin(14,12); // SDA, SCL
@@ -178,7 +182,7 @@ void setup() {
   init_display();
   pin_manager.init_pin();
   request_manager.init_request();
-  
+
   t.syncTime();
 
   request_manager.add_request("GET","/get_temp", &get_temp);
@@ -187,11 +191,16 @@ void setup() {
   request_manager.add_request("POST","/create_timer", &create_timer);
   request_manager.add_request("POST","/create_routine", &create_rutine);
   request_manager.add_request("DELETE","/delete_routine", &delete_rutine);
+  
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
 }
+
+int time_out = 0;
 
 void loop() {
   curr_time = t.get_dailySec();
-  if (curr_time % SENSOR_READING_TIME == 0 && curr_time != last_time)
+  if (curr_time % SENSOR_READING_TIME == 0 && curr_time != last_time && time_out > 0)
   {
     Serial.print("Read temp ");
     Serial.println(curr_time);
@@ -199,10 +208,24 @@ void loop() {
     t_h["relay_info"] = get_status((JsonDocument)nullptr);
     display_info(t_h["temperature"], t_h["humidity"], t_h["relay_info"]["relay_status"]); 
     last_time = curr_time;
+    time_out --;
+  }
+
+  if (time_out == 0)
+  {
+    display.clearDisplay();
+    display.display();
   }
   
+  button_state = digitalRead(BUTTON_PIN);
+
+  if(prev_button_state == LOW && button_state == HIGH)
+    time_out = 5;
+  
+  prev_button_state = button_state;
+
   pin_manager.manage_timer(t);
   request_manager.handle_request();
-  
+
   t.update_time();
 }
