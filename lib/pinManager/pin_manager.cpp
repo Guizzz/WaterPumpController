@@ -1,9 +1,12 @@
 #include "pin_manager.h"
 
-void PinManager::init_pin()
-{
-    pinMode(REALY_PIN, OUTPUT);
-    digitalWrite(REALY_PIN, LOW);
+void PinManager::init_pin(int r_pin, int b_pin)
+{   
+    relay_pin = r_pin;
+    button_pin = b_pin;
+    pinMode(relay_pin, OUTPUT);
+    digitalWrite(relay_pin, LOW);
+    pinMode(button_pin, INPUT_PULLUP);
 }
 
 bool PinManager::set_relay(bool set)
@@ -12,12 +15,21 @@ bool PinManager::set_relay(bool set)
         return value;
         
     if(set)
-        digitalWrite(REALY_PIN, HIGH);
+        digitalWrite(relay_pin, HIGH);
     else
-        digitalWrite(REALY_PIN, LOW); 
+        digitalWrite(relay_pin, LOW); 
 
     PinManager::value = set?HIGH:LOW;
     return value;
+}
+
+bool PinManager::isButtonPressed()
+{
+    button_state = digitalRead(button_pin);
+    if(prev_button_state == button_state)
+        return false;
+    prev_button_state = button_state;
+    return true;
 }
 
 JsonDocument PinManager::status()

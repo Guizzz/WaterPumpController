@@ -5,7 +5,6 @@
 
 #include <http_time_sync.h>
 
-#define REALY_PIN 5
 
 typedef struct {
   //all time is stored in second
@@ -22,8 +21,9 @@ typedef struct {
 class PinManager
 {
 public:
-  void init_pin();
+  void init_pin(int r_pin, int b_pin);
   bool set_relay(bool set);
+  bool isButtonPressed();
   JsonDocument status();
   void manage_timer(ClockTime curr_time);
   bool create_timer(unsigned long delta_timer, bool action, unsigned long current_time);
@@ -33,6 +33,11 @@ public:
 private:
   void manage_routine(unsigned long curr_time);
   bool value = false;
+  int prev_button_state = HIGH; // the previous state from the input pin
+  int button_state;
+
+  int relay_pin;
+  int button_pin;
 
   //can be only max 10 timers
   timer_action timers[10];

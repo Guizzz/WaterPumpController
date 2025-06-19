@@ -1,23 +1,18 @@
 #include <Arduino.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-#include <Wire.h>
 
+#include <display_manager.h>
 #include <request_manager.h>
 #include <pin_manager.h>
+
 #include <http_time_sync.h>
 
 #include "config.h"
 #include "gy_21.h"
 
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64 // OLED display height, in pixels
-
-// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
-
 WiFiServer server(80);
+
 PinManager pin_manager;
+DisplayManager display_manager;
 RequestManager request_manager(WIFI_SSID, WIFI_PASSWORD, &server);
 
 unsigned long curr_time;
@@ -26,66 +21,11 @@ unsigned long last_time;
 GY21 sensor;
 ClockTime t;
 
-void init_display()
-{
-  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    Serial.println(F("SSD1306 allocation failed"));
-    for(;;);
-  }
-  delay(2000);
-
-  display.clearDisplay();
-  display.setTextColor(WHITE);
-
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setCursor(0,0);
-  display.print("Starting...");
-  display.display();
-}
-
-void display_info(float temp, float humidity, bool relay)
-{
-  display.clearDisplay();
-
-  // display temperature
-  display.setTextSize(1);
-  display.setCursor(0,0);
-  display.print("Monitor ambient ");
-  display.print(relay?"ON":"OFF");
-
-  display.setCursor(0, 16);
-  display.print("Temp: ");
-  // display.setCursor(0, 26);
-  display.setTextSize(2);
-  display.print(temp, 1);
-  display.print(" ");
-  display.setTextSize(1);
-  display.cp437(true);
-  display.write(167);
-  display.setTextSize(2);
-  display.print("C");
-
-  display.setCursor(0, 42);
-  display.setTextSize(1);
-  display.print("Hum:  ");
-  // display.setCursor(0, 52);
-  display.setTextSize(2);
-  display.print(humidity, 1);
-  display.print(" %");
-
-  display.display(); 
-}
 
 JsonDocument get_temp(JsonDocument param)
 {
   float temp = sensor.GY21_Temperature();
   float hum = sensor.GY21_Humidity();
-  /*Serial.print("temp: ");
-  Serial.print(temp);
-  Serial.print("\t");
-  Serial.print("Hum: ");
-  Serial.println(hum);*/
 
   JsonDocument resp;
   resp["temperature"] = temp;
@@ -122,7 +62,7 @@ JsonDocument manage_relay(JsonDocument params)
   
   JsonDocument t_h = get_temp((JsonDocument)nullptr);
   t_h["relay_info"] = get_status((JsonDocument)nullptr);
-  display_info(t_h["temperature"], t_h["humidity"], t_h["relay_info"]["relay_status"]); 
+  display_manager.display_info(t_h["temperature"], t_h["humidity"], t_h["relay_info"]["relay_status"]); 
 
   return get_status((JsonDocument)nullptr);
 }
@@ -150,7 +90,7 @@ JsonDocument create_timer(JsonDocument params)
 
   JsonDocument t_h = get_temp((JsonDocument)nullptr);
   t_h["relay_info"] = get_status((JsonDocument)nullptr);
-  display_info(t_h["temperature"], t_h["humidity"], t_h["relay_info"]["relay_status"]); 
+  display_manager.display_info(t_h["temperature"], t_h["humidity"], t_h["relay_info"]["relay_status"]); 
 
   return get_status((JsonDocument)nullptr);
 }
@@ -171,16 +111,23 @@ JsonDocument delete_rutine(JsonDocument params)
   return get_status((JsonDocument)nullptr);
 }
 
-int prev_button_state = HIGH; // the previous state from the input pin
-int button_state;
-const int BUTTON_PIN = 15;
+
+int time_out = 0;
+
+void show_info()
+{
+  JsonDocument t_h = get_temp((JsonDocument)nullptr);
+  t_h["relay_info"] = get_status((JsonDocument)nullptr);
+
+  display_manager.display_info(t_h["temperature"], t_h["humidity"], t_h["relay_info"]["relay_status"]); 
+}
 
 void setup() {
   Serial.begin(9600);
-  Wire.begin(14,12); // SDA, SCL
+  Wire.begin(SDA, SCL);
 
-  init_display();
-  pin_manager.init_pin();
+  display_manager.init_display();
+  pin_manager.init_pin(REALY_PIN, BUTTON_PIN);
   request_manager.init_request();
 
   t.syncTime();
@@ -192,37 +139,28 @@ void setup() {
   request_manager.add_request("POST","/create_routine", &create_rutine);
   request_manager.add_request("DELETE","/delete_routine", &delete_rutine);
   
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
-
 }
 
-int time_out = 0;
 
 void loop() {
   curr_time = t.get_dailySec();
+
   if (curr_time % SENSOR_READING_TIME == 0 && curr_time != last_time && time_out > 0)
   {
     Serial.print("Read temp ");
     Serial.println(curr_time);
-    JsonDocument t_h = get_temp((JsonDocument)nullptr);
-    t_h["relay_info"] = get_status((JsonDocument)nullptr);
-    display_info(t_h["temperature"], t_h["humidity"], t_h["relay_info"]["relay_status"]); 
+    
+    show_info();
+
     last_time = curr_time;
     time_out --;
   }
 
   if (time_out == 0)
-  {
-    display.clearDisplay();
-    display.display();
-  }
+    display_manager.clear();
   
-  button_state = digitalRead(BUTTON_PIN);
-
-  if(prev_button_state == LOW && button_state == HIGH)
-    time_out = 5;
-  
-  prev_button_state = button_state;
+  if(pin_manager.isButtonPressed())
+    time_out = TIME_OUT_SCREEN;
 
   pin_manager.manage_timer(t);
   request_manager.handle_request();

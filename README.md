@@ -33,9 +33,19 @@ To get the project running, you need to create a configuration file with your Wi
     // WiFi Settings
     #define WIFI_SSID         "YOUR_WIFI_NAME"
     #define WIFI_PASSWORD     "YOUR_WIFI_PASSWORD"
+    #define PORT 80
 
     // Sensor reading interval (in seconds)
     #define SENSOR_READING_TIME  5
+
+    // Screen time out after press the button
+    #define TIME_OUT_SCREEN  5
+
+    // pin layout
+    #define REALY_PIN 5
+    #define BUTTON_PIN 15
+    #define SDA 14
+    #define SCL 12
 
     #endif // CONFIG_H
     ```
