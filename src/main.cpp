@@ -116,6 +116,11 @@ int time_out = 0;
 
 void show_info()
 {
+  if (time_out == 0)
+    return;
+
+  time_out --;
+    
   JsonDocument t_h = get_temp((JsonDocument)nullptr);
   t_h["relay_info"] = get_status((JsonDocument)nullptr);
 
@@ -145,7 +150,7 @@ void setup() {
 void loop() {
   curr_time = t.get_dailySec();
 
-  if (curr_time % SENSOR_READING_TIME == 0 && curr_time != last_time && time_out > 0)
+  if (curr_time % SENSOR_READING_TIME == 0 && curr_time != last_time)
   {
     Serial.print("Read temp ");
     Serial.println(curr_time);
@@ -153,14 +158,17 @@ void loop() {
     show_info();
 
     last_time = curr_time;
-    time_out --;
+    
   }
 
   if (time_out == 0)
     display_manager.clear();
   
   if(pin_manager.isButtonPressed())
+  {
+    Serial.println("Button pressed");
     time_out = TIME_OUT_SCREEN;
+  }
 
   pin_manager.manage_timer(t);
   request_manager.handle_request();

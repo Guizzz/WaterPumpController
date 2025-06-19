@@ -26,10 +26,13 @@ bool PinManager::set_relay(bool set)
 bool PinManager::isButtonPressed()
 {
     button_state = digitalRead(button_pin);
-    if(prev_button_state == button_state)
-        return false;
+    if(prev_button_state != button_state && button_state == HIGH)
+    {
+        prev_button_state = button_state;
+        return true;
+    }
     prev_button_state = button_state;
-    return true;
+    return false;
 }
 
 JsonDocument PinManager::status()

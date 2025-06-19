@@ -33,7 +33,7 @@ public:
 private:
   void manage_routine(unsigned long curr_time);
   bool value = false;
-  int prev_button_state = HIGH; // the previous state from the input pin
+  int prev_button_state = LOW;
   int button_state;
 
   int relay_pin;
