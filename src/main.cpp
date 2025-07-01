@@ -20,7 +20,7 @@ unsigned long last_time;
 
 GY21 sensor;
 ClockTime t;
-
+JsonDocument curr_status;
 
 JsonDocument get_temp(JsonDocument param)
 {
@@ -35,7 +35,9 @@ JsonDocument get_temp(JsonDocument param)
 
 JsonDocument get_status(JsonDocument param)
 {
-  JsonDocument s = pin_manager.status();
+  JsonDocument s = get_temp((JsonDocument)nullptr);
+  s["relay_info"] = pin_manager.status();
+
   return s;
 }
 
@@ -59,10 +61,6 @@ JsonDocument manage_relay(JsonDocument params)
   }
   
   pin_manager.set_relay(action);
-  
-  JsonDocument t_h = get_temp((JsonDocument)nullptr);
-  t_h["relay_info"] = get_status((JsonDocument)nullptr);
-  display_manager.display_info(t_h["temperature"], t_h["humidity"], t_h["relay_info"]["relay_status"]); 
 
   return get_status((JsonDocument)nullptr);
 }
@@ -88,10 +86,6 @@ JsonDocument create_timer(JsonDocument params)
 
   pin_manager.create_timer(String(params["TIMER"]).toInt(), action, t.get_dailySec());
 
-  JsonDocument t_h = get_temp((JsonDocument)nullptr);
-  t_h["relay_info"] = get_status((JsonDocument)nullptr);
-  display_manager.display_info(t_h["temperature"], t_h["humidity"], t_h["relay_info"]["relay_status"]); 
-
   return get_status((JsonDocument)nullptr);
 }
 
@@ -111,20 +105,24 @@ JsonDocument delete_rutine(JsonDocument params)
   return get_status((JsonDocument)nullptr);
 }
 
-
-int time_out = 0;
+int time_out = 2;
 
 void show_info()
 {
   if (time_out == 0)
     return;
 
-  time_out --;
-    
-  JsonDocument t_h = get_temp((JsonDocument)nullptr);
-  t_h["relay_info"] = get_status((JsonDocument)nullptr);
+  if (curr_time % SENSOR_READING_TIME == 0 && curr_time != last_time)
+  {
+    Serial.print("Read temp ");
+    Serial.println(curr_time);
+    curr_status = get_status((JsonDocument)nullptr);
 
-  display_manager.display_info(t_h["temperature"], t_h["humidity"], t_h["relay_info"]["relay_status"]); 
+    last_time = curr_time;
+    time_out --;
+  }
+
+  display_manager.display_info(curr_status["temperature"], curr_status["humidity"], curr_status["relay_info"]["relay_status"]);
 }
 
 void setup() {
@@ -144,22 +142,14 @@ void setup() {
   request_manager.add_request("POST","/create_routine", &create_rutine);
   request_manager.add_request("DELETE","/delete_routine", &delete_rutine);
   
+  curr_status = get_status((JsonDocument)nullptr);
 }
 
 
 void loop() {
   curr_time = t.get_dailySec();
-
-  if (curr_time % SENSOR_READING_TIME == 0 && curr_time != last_time)
-  {
-    Serial.print("Read temp ");
-    Serial.println(curr_time);
-    
-    show_info();
-
-    last_time = curr_time;
-    
-  }
+  
+  show_info();   
 
   if (time_out == 0)
     display_manager.clear();
