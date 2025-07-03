@@ -35,10 +35,14 @@ JsonDocument get_temp(JsonDocument param)
 
 JsonDocument get_status(JsonDocument param)
 {
-  JsonDocument s = get_temp((JsonDocument)nullptr);
-  s["relay_info"] = pin_manager.status();
+  JsonDocument status = get_temp((JsonDocument)nullptr);
+  status["relay_info"] = pin_manager.status();
+  ClockData time = t.get_time();
+  status["time"]["seconds"] = time.seconds;
+  status["time"]["minutes"] = time.minutes;
+  status["time"]["hours"] = time.hours;
 
-  return s;
+  return status;
 }
 
 JsonDocument manage_relay(JsonDocument params)

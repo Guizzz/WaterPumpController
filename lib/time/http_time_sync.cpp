@@ -28,14 +28,14 @@ void ClockTime::syncTime()
     JsonDocument resp;
     deserializeJson(resp, payload);
     Serial.println("Syncing time...");
-    hours = resp["hour"];
-    minutes = resp["minute"];
-    seconds = resp["seconds"];
-    Serial.print("h: "); Serial.print(hours);
-    Serial.print(" m: "); Serial.print(minutes);
-    Serial.print(" s: "); Serial.println(seconds);
+    clock_data.hours = resp["hour"];
+    clock_data.minutes = resp["minute"];
+    clock_data.seconds = resp["seconds"];
+    Serial.print("h: "); Serial.print(clock_data.hours);
+    Serial.print(" m: "); Serial.print(clock_data.minutes);
+    Serial.print(" s: "); Serial.println(clock_data.seconds);
 
-    daily_sec = (hours * 3600) + (minutes * 60) + seconds;
+    clock_data.daily_sec = (clock_data.hours * 3600) + (clock_data.minutes * 60) + clock_data.seconds;
   }
   else{
     Serial.print(https.getString());
@@ -50,23 +50,28 @@ void ClockTime::update_time()
   if (curr_time == last_time )
     return;
   
-  daily_sec++;
-  daily_sec = daily_sec % 86400;
+  clock_data.daily_sec++;
+  clock_data.daily_sec = clock_data.daily_sec % 86400;
 
-  if(daily_sec == 0)
+  if(clock_data.daily_sec == 0)
     syncTime();
   last_time = curr_time;
 
-  hours = daily_sec/3600;
-  minutes = (daily_sec%3600)/60;
-  seconds = (daily_sec%3600)%60;
+  clock_data.hours = clock_data.daily_sec/3600;
+  clock_data.minutes = (clock_data.daily_sec%3600)/60;
+  clock_data.seconds = (clock_data.daily_sec%3600)%60;
 
-  Serial.print("h: "); Serial.print(hours);
-  Serial.print(" m: "); Serial.print(minutes);
-  Serial.print(" s: "); Serial.println(seconds);
+  Serial.print("h: "); Serial.print(clock_data.hours);
+  Serial.print(" m: "); Serial.print(clock_data.minutes);
+  Serial.print(" s: "); Serial.println(clock_data.seconds);
 }
 
 int ClockTime::get_dailySec()
 {
-    return daily_sec;
+    return clock_data.daily_sec;
+}
+
+ClockData ClockTime::get_time()
+{
+  return clock_data;
 }
