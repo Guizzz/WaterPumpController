@@ -24,19 +24,29 @@ void DisplayManager::init_display()
   display.display();
 }
 
-void DisplayManager::display_info(float temp, float humidity, bool relay)
+void DisplayManager::display_info(Info status, int page)
 {
   display.clearDisplay();
 
+  if (page == 0)
+    page_1(status);
+  else if (page == 1)
+    page_2(status);
+
+  display.display(); 
+}
+
+void DisplayManager::page_1(Info status)
+{
   display.setTextSize(1);
   display.setCursor(0,0);
   display.print("Monitor ambient ");
-  display.print(relay?"ON":"OFF");
+  display.print(status.relay?"ON":"OFF");
 
   display.setCursor(0, 16);
   display.print("Temp: ");
   display.setTextSize(2);
-  display.print(temp, 1);
+  display.print(status.temp, 1);
   display.print(" ");
   display.setTextSize(1);
   display.cp437(true);
@@ -48,10 +58,30 @@ void DisplayManager::display_info(float temp, float humidity, bool relay)
   display.setTextSize(1);
   display.print("Hum:  ");
   display.setTextSize(2);
-  display.print(humidity, 1);
+  display.print(status.humidity, 1);
   display.print(" %");
+}
 
-  display.display(); 
+void DisplayManager::page_2(Info status)
+{
+  display.setTextSize(1);
+  display.setCursor(0,0);
+  display.print(status.hours);
+  display.print(":");
+  display.print(status.minutes);
+  display.print(":");
+  display.print(status.seconds);
+
+  display.setCursor(0, 16);
+  display.print("Active timer:   ");
+  display.setTextSize(2);
+  display.print(status.active_timer);
+
+  display.setCursor(0, 42);
+  display.setTextSize(1);
+  display.print("Active routine: ");
+  display.setTextSize(2);
+  display.print(status.active_routine);
 }
 
 void DisplayManager::clear()

@@ -109,7 +109,8 @@ JsonDocument delete_rutine(JsonDocument params)
   return get_status((JsonDocument)nullptr);
 }
 
-int time_out = 2;
+int time_out = TIME_OUT_SCREEN;
+int page = 0;
 
 void show_info()
 {
@@ -126,7 +127,17 @@ void show_info()
     time_out --;
   }
 
-  display_manager.display_info(curr_status["temperature"], curr_status["humidity"], curr_status["relay_info"]["relay_status"]);
+  Info i;
+  i.temp           = curr_status["temperature"];
+  i.humidity       = curr_status["humidity"];
+  i.relay          = curr_status["relay_info"]["relay_status"];
+  i.active_timer   = curr_status["relay_info"]["active_timer"];
+  i.active_routine = curr_status["relay_info"]["active_routine"];
+  i.seconds        = curr_status["time"]["seconds"];
+  i.minutes        = curr_status["time"]["minutes"];
+  i.hours          = curr_status["time"]["hours"];
+
+  display_manager.display_info(i, page);
 }
 
 void setup() {
@@ -156,12 +167,20 @@ void loop() {
   show_info();   
 
   if (time_out == 0)
+  {
     display_manager.clear();
+    page = 0;
+  }
   
   if(pin_manager.isButtonPressed())
   {
     Serial.println("Button pressed");
     time_out = TIME_OUT_SCREEN;
+    if (last_time == curr_time)
+      page = (++page) % 2;
+
+    Serial.print("page: ");
+    Serial.println(page);
   }
 
   pin_manager.manage_timer(t);
