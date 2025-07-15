@@ -6,17 +6,17 @@
 #include <http_time_sync.h>
 
 
-typedef struct {
+struct TimerAction {
   //all time is stored in second
   unsigned long start_timer;
   unsigned long delta_timer;
   bool action;
-} timer_action;
+};
 
-typedef struct {
+struct RoutineAction {
   unsigned long start;
   unsigned long stop;
-} routine_action;
+};
 
 class PinManager
 {
@@ -40,10 +40,10 @@ private:
   int button_pin;
 
   //can be only max 10 timers
-  timer_action timers[10];
+  TimerAction timers[10];
   int timers_running = -1;
 
-  routine_action routine;
-  int routine_running = 0;
+  RoutineAction routine;
+  bool routine_running = false;
 };
 #endif

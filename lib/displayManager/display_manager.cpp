@@ -6,6 +6,15 @@ DisplayManager::DisplayManager(/* args */)
     display = Adafruit_SSD1306(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 }
 
+void DisplayManager::fast_write(String msg)
+{
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setCursor(0,0);
+  display.print(msg);
+  display.display();
+}
+
 void DisplayManager::init_display()
 {
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
@@ -16,12 +25,6 @@ void DisplayManager::init_display()
 
   display.clearDisplay();
   display.setTextColor(WHITE);
-
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setCursor(0,0);
-  display.print("Starting...");
-  display.display();
 }
 
 void DisplayManager::display_info(Info status, int page)
@@ -32,7 +35,8 @@ void DisplayManager::display_info(Info status, int page)
     page_1(status);
   else if (page == 1)
     page_2(status);
-
+  else if (page == 2)
+    page_3(status);
   display.display(); 
 }
 
@@ -82,6 +86,32 @@ void DisplayManager::page_2(Info status)
   display.print("Active routine: ");
   display.setTextSize(2);
   display.print(status.active_routine);
+}
+
+void DisplayManager::page_3(Info status)
+{
+  display.setTextSize(1);
+  display.setCursor(0,0);
+  display.print(status.hours);
+  display.print(":");
+  display.print(status.minutes);
+  display.print(":");
+  display.print(status.seconds);
+
+  display.setCursor(0, 16);
+  display.print("SSID:");
+  display.setCursor(0, 25);
+  display.print(status.ssid);
+
+  display.setCursor(0, 42);
+  display.print("IP: ");
+  display.setCursor(0, 51);
+  display.print(status.ip);
+}
+
+int DisplayManager::get_pages_number()
+{
+  return pages;
 }
 
 void DisplayManager::clear()

@@ -18,6 +18,9 @@ struct Info
     int seconds;
     int minutes;
     int hours;
+
+    String ssid;
+    String ip;
 };
 
 class DisplayManager
@@ -26,9 +29,14 @@ private:
     Adafruit_SSD1306 display;
     void page_1(Info status);
     void page_2(Info status);
+    void page_3(Info status);
+    int pages = 3;
+
 public:
     DisplayManager();
+    void fast_write(String msg);
     void init_display();
+    int get_pages_number();
     void clear();
     void display_info(Info status, int page=1);
 };

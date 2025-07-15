@@ -95,12 +95,19 @@ JsonDocument create_timer(JsonDocument params)
 
 JsonDocument create_rutine(JsonDocument params)
 {
-  pin_manager.create_routine(
+  bool ret = pin_manager.create_routine(
     String(params["start_hour"]).toInt(), 
     String(params["start_minute"]).toInt(), 
     String(params["stop_hour"]).toInt(), 
     String(params["stop_minute"]).toInt());
-  return get_status((JsonDocument)nullptr);
+
+  if (ret)
+    return get_status((JsonDocument)nullptr);
+  
+  JsonDocument resp;
+  resp["relay_info"]["error"] = "Fail to crate new routine, there is already one setted";
+  return resp;
+
 }
 
 JsonDocument delete_rutine(JsonDocument params)
@@ -126,6 +133,7 @@ void show_info()
     last_time = curr_time;
     time_out --;
   }
+  NetInfo n = request_manager.get_net_info();
 
   Info i;
   i.temp           = curr_status["temperature"];
@@ -136,6 +144,8 @@ void show_info()
   i.seconds        = curr_status["time"]["seconds"];
   i.minutes        = curr_status["time"]["minutes"];
   i.hours          = curr_status["time"]["hours"];
+  i.ssid           = n.ssid;
+  i.ip             = n.ip;
 
   display_manager.display_info(i, page);
 }
@@ -145,11 +155,15 @@ void setup() {
   Wire.begin(SDA, SCL);
 
   display_manager.init_display();
-  pin_manager.init_pin(REALY_PIN, BUTTON_PIN);
+  display_manager.fast_write("Connecting WI-FI...");
   request_manager.init_request();
-
+  display_manager.fast_write("Initializing pin...");
+  pin_manager.init_pin(REALY_PIN, BUTTON_PIN);
+  
+  display_manager.fast_write("Syncing timezone...");
   t.syncTime();
-
+  
+  display_manager.fast_write("Initializing request...");
   request_manager.add_request("GET","/get_temp", &get_temp);
   request_manager.add_request("GET","/get_status", &get_status);
   request_manager.add_request("POST","/set", &manage_relay);
@@ -158,8 +172,8 @@ void setup() {
   request_manager.add_request("DELETE","/delete_routine", &delete_rutine);
   
   curr_status = get_status((JsonDocument)nullptr);
+  display_manager.fast_write("Done!");
 }
-
 
 void loop() {
   curr_time = t.get_dailySec();
@@ -174,13 +188,9 @@ void loop() {
   
   if(pin_manager.isButtonPressed())
   {
-    Serial.println("Button pressed");
     time_out = TIME_OUT_SCREEN;
     if (last_time == curr_time)
-      page = (++page) % 2;
-
-    Serial.print("page: ");
-    Serial.println(page);
+      page = (++page) % display_manager.get_pages_number();
   }
 
   pin_manager.manage_timer(t);

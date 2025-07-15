@@ -11,6 +11,12 @@ struct Request
   JsonDocument (*request_function)(JsonDocument param);
 };
 
+struct NetInfo
+{
+  String ssid;
+  String ip;
+};
+
 class RequestManager
 {
   String ssid, psw;
@@ -24,6 +30,7 @@ class RequestManager
   public:
     RequestManager(String ssid, String psw, WiFiServer* s);
     void init_request();
+    NetInfo get_net_info();
     /*
     Add request to be handled by API server:
 

@@ -61,9 +61,9 @@ void ClockTime::update_time()
   clock_data.minutes = (clock_data.daily_sec%3600)/60;
   clock_data.seconds = (clock_data.daily_sec%3600)%60;
 
-  Serial.print("h: "); Serial.print(clock_data.hours);
-  Serial.print(" m: "); Serial.print(clock_data.minutes);
-  Serial.print(" s: "); Serial.println(clock_data.seconds);
+  // Serial.print("h: "); Serial.print(clock_data.hours);
+  // Serial.print(" m: "); Serial.print(clock_data.minutes);
+  // Serial.print(" s: "); Serial.println(clock_data.seconds);
 }
 
 int ClockTime::get_dailySec()

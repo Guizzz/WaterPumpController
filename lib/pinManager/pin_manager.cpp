@@ -71,7 +71,7 @@ void PinManager::manage_timer(ClockTime time)
 
 void PinManager::manage_routine(unsigned long curr_time)
 {
-    if(routine_running == 0)
+    if(!routine_running)
         return;
     
     if(routine.start == curr_time)
@@ -114,10 +114,13 @@ bool PinManager::create_timer(unsigned long delta_timer, bool action, unsigned l
 
 bool PinManager::create_routine(unsigned long start_hour, unsigned long start_minute, unsigned long stop_hour, unsigned long stop_minute)
 {
+    if (routine_running)
+        return false;
+
     routine.start = (start_hour * 3600) + (start_minute * 60);
     routine.stop = (stop_hour * 3600) + (stop_minute * 60);
 
-    routine_running ++;
+    routine_running = true;
     
     Serial.print("Routine created | start: "); Serial.print(routine.start);
     Serial.print(" | stop: "); Serial.println(routine.stop);
@@ -126,7 +129,6 @@ bool PinManager::create_routine(unsigned long start_hour, unsigned long start_mi
 
 bool PinManager::delete_routine()
 {   
-    if(routine_running > 0)
-        routine_running --;
+    routine_running = false;
     return true;
 }

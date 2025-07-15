@@ -25,7 +25,7 @@ void RequestManager::init_request()
   Serial.print("IP Address of network: ");
   Serial.println(WiFi.localIP());
   Serial.print("Copy and paste the following URL: http://");
-  Serial.print(WiFi.localIP());
+  Serial.print(WiFi.localIP().toString());
   Serial.println("/");
 
   // Initialize SPIFFS
@@ -33,6 +33,14 @@ void RequestManager::init_request()
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
   }
+}
+
+NetInfo RequestManager::get_net_info()
+{
+    NetInfo info;
+    info.ssid= ssid;
+    info.ip = WiFi.localIP().toString();
+    return info;
 }
 
 void RequestManager::add_request(String method, String path, JsonDocument (*request_function)(JsonDocument param))
