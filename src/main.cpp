@@ -153,6 +153,7 @@ void show_info()
 void setup() {
   Serial.begin(9600);
   Wire.begin(SDA, SCL);
+  page = 0;
 
   display_manager.init_display();
   display_manager.fast_write("Connecting WI-FI...");
