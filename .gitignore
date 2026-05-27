@@ -34,3 +34,4 @@
 include/config.h
 .pio/
 .vscode/
+.DS_Store
