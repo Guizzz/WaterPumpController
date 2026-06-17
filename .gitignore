@@ -35,3 +35,5 @@ include/config.h
 .pio/
 .vscode/
 .DS_Store
+.env
+.opencode/.env
