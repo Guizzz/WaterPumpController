@@ -35,6 +35,11 @@ To get the project running, you need to create a configuration file with your Wi
     #define WIFI_PASSWORD     "YOUR_WIFI_PASSWORD"
     #define PORT 80
 
+    // MQTT Settings
+    #define MQTT_HOST "192.168.1.109"
+    #define MQTT_PORT 1883
+    #define DEVICE_ID "pompa_cantina"
+
     // Sensor reading interval (in seconds)
     #define SENSOR_READING_TIME  5
 
