@@ -9,6 +9,8 @@
 #include "config.h"
 #include "gy_21.h"
 
+#include <mqtt_manager.h>
+
 WiFiServer server(80);
 
 PinManager pin_manager;
@@ -21,6 +23,11 @@ unsigned long last_time;
 GY21 sensor;
 ClockTime t;
 JsonDocument curr_status;
+
+MqttManager mqtt(DEVICE_ID, "Pompa Acqua", "pump",
+                 WIFI_SSID, WIFI_PASSWORD,
+                 MQTT_HOST, MQTT_PORT,
+                 SENSOR_READING_TIME);
 
 JsonDocument get_temp(JsonDocument param)
 {
@@ -116,6 +123,22 @@ JsonDocument delete_rutine(JsonDocument params)
   return get_status((JsonDocument)nullptr);
 }
 
+JsonDocument mqtt_status_builder()
+{
+  JsonDocument doc;
+  doc["temperature"] = curr_status["temperature"];
+  doc["humidity"] = curr_status["humidity"];
+  doc["running"] = curr_status["relay_info"]["relay_status"];
+  return doc;
+}
+
+JsonDocument handle_set_pump(JsonDocument params)
+{
+  bool value = params["value"];
+  pin_manager.set_relay(value);
+  return pin_manager.status();
+}
+
 int time_out = TIME_OUT_SCREEN;
 int page = 0;
 
@@ -158,6 +181,11 @@ void setup() {
   display_manager.init_display();
   display_manager.fast_write("Connecting WI-FI...");
   request_manager.init_request();
+  display_manager.fast_write("Connecting MQTT...");
+  mqtt.begin();
+  mqtt.on_status(mqtt_status_builder);
+  mqtt.on_command("set_pump", handle_set_pump);
+
   display_manager.fast_write("Initializing pin...");
   pin_manager.init_pin(REALY_PIN, BUTTON_PIN);
   
@@ -177,6 +205,8 @@ void setup() {
 }
 
 void loop() {
+  mqtt.loop();
+
   curr_time = t.get_dailySec();
   
   show_info();   
