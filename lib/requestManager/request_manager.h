@@ -1,8 +1,6 @@
 #include <ESP8266WiFi.h>
 #include <ArduinoJson.h>
-#include <list>
-
-#include <pin_manager.h>
+#include <vector>
 
 struct Request
 {
@@ -11,34 +9,18 @@ struct Request
   JsonDocument (*request_function)(JsonDocument param);
 };
 
-struct NetInfo
-{
-  String ssid;
-  String ip;
-};
-
 class RequestManager
 {
-  String ssid, psw;
   WiFiServer* server;
-  std::list<Request> requests_list;
+  std::vector<Request> requests_list;
 
+  String extract_path(String request);
+  String read_headers(WiFiClient* client, int* content_length, String* content_type);
   void send_header(WiFiClient* client, bool ok, String content_type);
-  void web_page(WiFiClient* client);
-  JsonDocument parse_parameters(String request);
+  JsonDocument parse_parameters(String request, String body, String content_type);
 
   public:
-    RequestManager(String ssid, String psw, WiFiServer* s);
-    void init_request();
-    NetInfo get_net_info();
-    /*
-    Add request to be handled by API server:
-
-    method: specify the method of the request
-    path: specify the path of the request
-    request_function: define the function to be called to manage the request
-    parm: param to pass to the request_function
-    */
+    RequestManager(WiFiServer* s);
     void add_request(String method, String path, JsonDocument (*request_function)(JsonDocument param));
     void handle_request();
 };

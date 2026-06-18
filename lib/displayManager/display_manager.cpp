@@ -1,9 +1,11 @@
 #include "display_manager.h"
 
-DisplayManager::DisplayManager(/* args */)
+DisplayManager::DisplayManager(unsigned long timeout_ms)
+    : display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1),
+      _timeout(timeout_ms),
+      _last_activity(0),
+      _display_on(true)
 {
-    // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-    display = Adafruit_SSD1306(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 }
 
 void DisplayManager::fast_write(String msg)
@@ -27,15 +29,15 @@ void DisplayManager::init_display()
   display.setTextColor(WHITE);
 }
 
-void DisplayManager::display_info(Info status, int page)
+void DisplayManager::display_info(Info status)
 {
   display.clearDisplay();
 
-  if (page == 0)
+  if (current_page == 0)
     page_1(status);
-  else if (page == 1)
+  else if (current_page == 1)
     page_2(status);
-  else if (page == 2)
+  else if (current_page == 2)
     page_3(status);
   display.display(); 
 }
@@ -118,4 +120,33 @@ void DisplayManager::clear()
 {
     display.clearDisplay();
     display.display();
+}
+
+void DisplayManager::activity()
+{
+    _last_activity = millis();
+    if (!_display_on)
+    {
+        _display_on = true;
+        display.ssd1306_command(0xAF);
+        display.display();
+    }
+    current_page = (current_page + 1) % pages;
+}
+
+void DisplayManager::update()
+{
+    if (!_display_on) return;
+    if (_timeout > 0 && millis() - _last_activity >= _timeout)
+    {
+        _display_on = false;
+        current_page = -1;
+        display.ssd1306_command(0xAE);
+        clear();
+    }
+}
+
+bool DisplayManager::is_on()
+{
+    return _display_on;
 }

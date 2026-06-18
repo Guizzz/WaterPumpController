@@ -3,22 +3,19 @@
 #include <display_manager.h>
 #include <request_manager.h>
 #include <pin_manager.h>
-
 #include <http_time_sync.h>
 
 #include "config.h"
 #include "gy_21.h"
 
 #include <mqtt_manager.h>
+#include <thread_manager.h>
 
 WiFiServer server(80);
 
 PinManager pin_manager;
-DisplayManager display_manager;
-RequestManager request_manager(WIFI_SSID, WIFI_PASSWORD, &server);
-
-unsigned long curr_time;
-unsigned long last_time;
+DisplayManager display_manager(TIME_OUT_SCREEN * 1000UL);
+RequestManager request_manager(&server);
 
 GY21 sensor;
 ClockTime t;
@@ -28,6 +25,10 @@ MqttManager mqtt(DEVICE_ID, "Pompa Acqua", "pump",
                  WIFI_SSID, WIFI_PASSWORD,
                  MQTT_HOST, MQTT_PORT,
                  SENSOR_READING_TIME);
+
+ThreadManager thread_manager;
+
+int current_page = 0;
 
 JsonDocument get_temp(JsonDocument param)
 {
@@ -53,10 +54,10 @@ JsonDocument get_status(JsonDocument param)
 }
 
 JsonDocument manage_relay(JsonDocument params)
-{   
+{
   JsonDocument resp;
   if(params["RELAY"] != "ON" && params["RELAY"] != "OFF")
-  {   
+  {
     Serial.println("Invalid type: can only be ON or OFF");
     resp["error"]["RELAY"] = "Invalid type: can only be ON or OFF";
     return resp;
@@ -65,12 +66,12 @@ JsonDocument manage_relay(JsonDocument params)
   bool action = params["RELAY"] == "ON";
 
   if (params["TIMER"].is<String>())
-  {   
+  {
     Serial.println("Invalid request: set/ request does not have TIMER");
     resp["error"]["TIMER"] = "Invalid type: set/ request does not have TIMER";
     return resp;
   }
-  
+
   pin_manager.set_relay(action);
 
   return get_status((JsonDocument)nullptr);
@@ -80,7 +81,7 @@ JsonDocument create_timer(JsonDocument params)
 {
   JsonDocument resp;
   if(params["RELAY"] != "ON" && params["RELAY"] != "OFF")
-  {   
+  {
     Serial.println("Invalid type: can only be ON or OFF");
     resp["error"]["RELAY"] = "Invalid type: can only be ON or OFF";
     return resp;
@@ -89,7 +90,7 @@ JsonDocument create_timer(JsonDocument params)
   bool action = params["RELAY"] == "ON";
 
   if (!params["TIMER"].is<String>())
-  {   
+  {
     Serial.println("Invalid request: missing TIMER parameter");
     resp["error"]["TIMER"] = "Invalid request: missing TIMER parameter";
     return resp;
@@ -103,18 +104,17 @@ JsonDocument create_timer(JsonDocument params)
 JsonDocument create_rutine(JsonDocument params)
 {
   bool ret = pin_manager.create_routine(
-    String(params["start_hour"]).toInt(), 
-    String(params["start_minute"]).toInt(), 
-    String(params["stop_hour"]).toInt(), 
+    String(params["start_hour"]).toInt(),
+    String(params["start_minute"]).toInt(),
+    String(params["stop_hour"]).toInt(),
     String(params["stop_minute"]).toInt());
 
   if (ret)
     return get_status((JsonDocument)nullptr);
-  
+
   JsonDocument resp;
   resp["relay_info"]["error"] = "Fail to crate new routine, there is already one setted";
   return resp;
-
 }
 
 JsonDocument delete_rutine(JsonDocument params)
@@ -139,93 +139,103 @@ JsonDocument handle_set_pump(JsonDocument params)
   return pin_manager.status();
 }
 
-int time_out = TIME_OUT_SCREEN;
-int page = 0;
-
-void show_info()
+void read_sensor_task()
 {
-  if (time_out == 0)
-    return;
+  float temp = sensor.GY21_Temperature();
+  float hum = sensor.GY21_Humidity();
 
-  if (curr_time % SENSOR_READING_TIME == 0 && curr_time != last_time)
-  {
-    Serial.print("Read temp ");
-    Serial.println(curr_time);
-    curr_status = get_status((JsonDocument)nullptr);
+  curr_status["temperature"] = temp;
+  curr_status["humidity"] = hum;
 
-    last_time = curr_time;
-    time_out --;
-  }
-  NetInfo n = request_manager.get_net_info();
-
-  Info i;
-  i.temp           = curr_status["temperature"];
-  i.humidity       = curr_status["humidity"];
-  i.relay          = curr_status["relay_info"]["relay_status"];
-  i.active_timer   = curr_status["relay_info"]["active_timer"];
-  i.active_routine = curr_status["relay_info"]["active_routine"];
-  i.seconds        = curr_status["time"]["seconds"];
-  i.minutes        = curr_status["time"]["minutes"];
-  i.hours          = curr_status["time"]["hours"];
-  i.ssid           = n.ssid;
-  i.ip             = n.ip;
-
-  display_manager.display_info(i, page);
+  JsonDocument s = pin_manager.status();
+  curr_status["relay_info"]["relay_status"] = s["relay_status"];
+  curr_status["relay_info"]["active_timer"] = s["active_timer"];
+  curr_status["relay_info"]["active_routine"] = s["active_routine"];
 }
 
-void setup() {
+void manage_timer_task()
+{
+  pin_manager.manage_timer(t);
+}
+
+void handle_button_task()
+{
+  if (pin_manager.isButtonPressed())
+  {
+    display_manager.activity();
+  }
+}
+
+void update_time_task()
+{
+  t.update_time();
+  ClockData time = t.get_time();
+  curr_status["time"]["seconds"] = time.seconds;
+  curr_status["time"]["minutes"] = time.minutes;
+  curr_status["time"]["hours"] = time.hours;
+}
+
+void update_display_task()
+{
+  display_manager.update();
+
+  if (!display_manager.is_on()) return;
+
+  Info info;
+  info.temp           = curr_status["temperature"];
+  info.humidity       = curr_status["humidity"];
+  info.relay          = curr_status["relay_info"]["relay_status"];
+  info.active_timer   = curr_status["relay_info"]["active_timer"];
+  info.active_routine = curr_status["relay_info"]["active_routine"];
+  info.seconds        = curr_status["time"]["seconds"];
+  info.minutes        = curr_status["time"]["minutes"];
+  info.hours          = curr_status["time"]["hours"];
+  info.ssid           = WiFi.SSID();
+  info.ip             = WiFi.localIP().toString();
+
+  display_manager.display_info(info);
+}
+
+void setup()
+{
   Serial.begin(9600);
   Wire.begin(SDA, SCL);
-  page = 0;
 
   display_manager.init_display();
-  display_manager.fast_write("Connecting WI-FI...");
-  request_manager.init_request();
-  display_manager.fast_write("Connecting MQTT...");
-  mqtt.begin();
-  mqtt.on_status(mqtt_status_builder);
-  mqtt.on_command("set_pump", handle_set_pump);
+  display_manager.fast_write("Connessione WiFi...");
 
-  display_manager.fast_write("Initializing pin...");
+  mqtt.begin();
+  server.begin();
+
   pin_manager.init_pin(REALY_PIN, BUTTON_PIN);
-  
-  display_manager.fast_write("Syncing timezone...");
+
+  display_manager.fast_write("Sincronizzo ora...");
   t.syncTime();
-  
-  display_manager.fast_write("Initializing request...");
+
   request_manager.add_request("GET","/get_temp", &get_temp);
   request_manager.add_request("GET","/get_status", &get_status);
   request_manager.add_request("POST","/set", &manage_relay);
   request_manager.add_request("POST","/create_timer", &create_timer);
   request_manager.add_request("POST","/create_routine", &create_rutine);
   request_manager.add_request("DELETE","/delete_routine", &delete_rutine);
-  
+
+  mqtt.on_status(mqtt_status_builder);
+  mqtt.on_command("set_pump", handle_set_pump);
+
+  thread_manager.add_method(update_time_task, 1000);
+  thread_manager.add_method(manage_timer_task, 1000);
+  thread_manager.add_method(handle_button_task, 25);
+  thread_manager.add_method(read_sensor_task, SENSOR_READING_TIME * 1000UL);
+  thread_manager.add_method(update_display_task, 500);
+
   curr_status = get_status((JsonDocument)nullptr);
-  display_manager.fast_write("Done!");
+
+  display_manager.fast_write("Pronto!");
 }
 
-void loop() {
-  mqtt.loop();
-
-  curr_time = t.get_dailySec();
-  
-  show_info();   
-
-  if (time_out == 0)
-  {
-    display_manager.clear();
-    page = 0;
-  }
-  
-  if(pin_manager.isButtonPressed())
-  {
-    time_out = TIME_OUT_SCREEN;
-    if (last_time == curr_time)
-      page = (++page) % display_manager.get_pages_number();
-  }
-
-  pin_manager.manage_timer(t);
+void loop()
+{
+  thread_manager.thread_loop();
   request_manager.handle_request();
-
-  t.update_time();
+  mqtt.loop();
 }
