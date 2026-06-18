@@ -19,7 +19,7 @@ Controls a water pump relay + reads GY-21 temp/humidity sensor + SSD1306 OLED di
 
 ## Architecture
 - **`src/main.cpp`** — entry point, runs `setup()` → `loop()`, connects WiFi, routes REST endpoints
-- **`lib/`** — 4 custom libraries: `displayManager/`, `pinManager/`, `requestManager/`, `time/`
+- **`lib/`** — 5 custom libraries: `displayManager/`, `pinManager/`, `requestManager/`, `time/`, `mqttManager/`
 - **`include/gy_21.h`** — GY-21 sensor driver (I2C, 0x40), template class
 - **`data/basic.html`** — web UI served from SPIFFS
 - **`include/config.h`** — all user configuration (gitignored)
@@ -37,3 +37,11 @@ Controls a water pump relay + reads GY-21 temp/humidity sensor + SSD1306 OLED di
 - Timer array is fixed at 10 slots. Timers run in daily seconds (resets at midnight).
 - Known typos in source: `create_rutine` (function + route missing 'o'), `...already one setted` in error message.
 - Serial monitor speed: 9600 baud.
+
+## MQTT (Guiver protocol)
+- **`lib/mqttManager/`** — copiata da `Guizzz/TempStation`, gestisce WiFi internamente
+- Topic: `guiver/<DEVICE_ID>/` (announce, online, status, command, response)
+- `begin()` → WiFi + MQTT connect con LWT (`guiver/<id>/online` = "0")
+- `on_status(builder)` → callback che restituisce `JsonDocument` per publish periodico
+- `on_command(cmd, handler)` → registra handler per comando MQTT
+- L'announce è automatico al boot (type, name, sensors, actuators, interval)
